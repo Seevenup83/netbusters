@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using netbusters.Data;
 using netbusters.Models;
-using BCrypt.Net;
+using Microsoft.AspNetCore.Authorization;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Microsoft.IdentityModel.Tokens;
@@ -28,16 +28,22 @@ namespace netbusters.Controllers
         [HttpPost]
         public IActionResult Register(User registerRequest)
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
             // Check if username already exists
             if (_context.Users.Any(u => u.Username == registerRequest.Username))
             {
-                return BadRequest("Username is already taken.");
+                ModelState.AddModelError("Username", "Username is already taken.");
+                return BadRequest(ModelState);
             }
 
-            // Hash the password
+            // Hash the password here, after validation
             registerRequest.Password = BCrypt.Net.BCrypt.HashPassword(registerRequest.Password);
 
-            // Add user to database
+            // Add user to the database
             _context.Users.Add(registerRequest);
             _context.SaveChanges();
 
@@ -49,13 +55,19 @@ namespace netbusters.Controllers
         /// Logs user into the system.
         /// </summary>        
         [HttpPost("login")]
-        public IActionResult Login(string username, string password)
+        public IActionResult Login(User loginRequest)
         {
-            var user = _context.Users.SingleOrDefault(u => u.Username == username);
-
-            if (user == null || !BCrypt.Net.BCrypt.Verify(password, user.Password))
+            if (!ModelState.IsValid)
             {
-                return Unauthorized("Invalid credentials.");
+                return BadRequest(ModelState);
+            }
+
+            var user = _context.Users.SingleOrDefault(u => u.Username == loginRequest.Username);
+
+            if (user == null || !BCrypt.Net.BCrypt.Verify(loginRequest.Password, user.Password))
+            {
+                ModelState.AddModelError("Password", "Invalid credentials.");
+                return Unauthorized(ModelState);
             }
 
             var token = GenerateJwtToken(user);
@@ -67,6 +79,7 @@ namespace netbusters.Controllers
             var claims = new[]
             {
                 new Claim(JwtRegisteredClaimNames.Sub, user.Username),
+                new Claim(JwtRegisteredClaimNames.Name, user.Username),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
             };
 
@@ -86,6 +99,31 @@ namespace netbusters.Controllers
             var token = tokenHandler.CreateToken(tokenDescriptor);
 
             return tokenHandler.WriteToken(token);
+        }
+
+        [Authorize]
+        [HttpDelete("delete")]
+        public IActionResult DeleteAccount()
+        {
+            // Extract username from the JWT token
+            var username = User.Identity?.Name;
+            if (string.IsNullOrEmpty(username))
+            {
+                return Unauthorized($"User is not logged in. Extracted username: '{username}'");
+            }
+
+            // Find the user in the database
+            var user = _context.Users.SingleOrDefault(u => u.Username == username);
+            if (user == null)
+            {
+                return NotFound("User not found.");
+            }
+
+            // Delete the user
+            _context.Users.Remove(user);
+            _context.SaveChanges();
+
+            return Ok("User deleted successfully.");
         }
     }
 }

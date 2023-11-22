@@ -6,6 +6,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using netbusters.Models;
 using System.Reflection;
+using System.IdentityModel.Tokens.Jwt;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -30,7 +31,34 @@ var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "NetBusters", Version = "v1" });
-    c.IncludeXmlComments(xmlPath);
+
+    // Define the OAuth2.0 scheme that Swagger will use
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Description = "JWT Authorization header using the Bearer scheme. Example: \"Authorization: Bearer {token}\"",
+        Name = "Authorization",
+        In = ParameterLocation.Header,
+        Type = SecuritySchemeType.ApiKey,
+        Scheme = "Bearer"
+    });
+
+    c.AddSecurityRequirement(new OpenApiSecurityRequirement()
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                },
+                Scheme = "oauth2",
+                Name = "Bearer",
+                In = ParameterLocation.Header
+            },
+            new List<string>()
+        }
+    });
 });
 
 // Configure JWT Bearer Authentication using settings from JwtSettings.
@@ -43,7 +71,10 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuerSigningKey = true,
             IssuerSigningKey = new SymmetricSecurityKey(secretKey),
             ValidIssuer = jwtSettings.Issuer,
-            ValidAudience = jwtSettings.Audience
+            ValidAudience = jwtSettings.Audience,
+
+            // Ensure the JWT token's 'sub' claim maps to the user's identity name
+            NameClaimType = JwtRegisteredClaimNames.Sub
         };
     });
 
