@@ -10,13 +10,6 @@ using System.IdentityModel.Tokens.Jwt;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Bind JWT settings from the configuration to JwtSettings class.
-var jwtSettings = new JwtSettings();
-builder.Configuration.GetSection("JwtSettings").Bind(jwtSettings);
-
-// Register JwtSettings as a singleton for dependency injection.
-builder.Services.AddSingleton(jwtSettings);
-
 // Configuring Entity Framework Core with Npgsql as the database provider.
 // Connects to the database using connection string from the configuration.
 builder.Services.AddDbContext<DatabaseContext>(options =>
@@ -31,6 +24,7 @@ var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo { Title = "NetBusters", Version = "v1" });
+    c.IncludeXmlComments(xmlPath);
 
     // Define the OAuth2.0 scheme that Swagger will use
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
@@ -61,20 +55,21 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// Configure JWT Bearer Authentication using settings from JwtSettings.
+// Configure JWT Bearer Authentication using settings directly from appsettings.json.
+var secretKey = builder.Configuration["JwtSettings:SecretKey"];
+var issuer = builder.Configuration["JwtSettings:Issuer"];
+var audience = builder.Configuration["JwtSettings:Audience"];
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
-        var secretKey = Encoding.UTF8.GetBytes(jwtSettings.SecretKey);
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(secretKey),
-            ValidIssuer = jwtSettings.Issuer,
-            ValidAudience = jwtSettings.Audience,
-
-            // Ensure the JWT token's 'sub' claim maps to the user's identity name
-            NameClaimType = JwtRegisteredClaimNames.Sub
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
+            ValidIssuer = issuer,
+            ValidAudience = audience,
+            NameClaimType = "name"
         };
     });
 
