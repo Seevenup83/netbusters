@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using netbusters.Data;
 using netbusters.Models;
+using netbusters.Utilities;
 using Microsoft.AspNetCore.Authorization;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -14,13 +15,13 @@ namespace netbusters.Controllers
     public class UserController : ControllerBase
     {
         private readonly DatabaseContext _context;
-        private readonly JwtSettings _jwtSettings;
-
-        public UserController(DatabaseContext context, JwtSettings jwtSettings)
+        private readonly IConfiguration _configuration;
+        public UserController(DatabaseContext context, IConfiguration configuration)
         {
             _context = context;
-            _jwtSettings = jwtSettings;
+            _configuration = configuration;
         }
+
 
         /// <summary>
         /// Registers a new user.
@@ -30,14 +31,13 @@ namespace netbusters.Controllers
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest(ModelState);
+                return BadRequest(new ApiResponse(1, "Bad Request."));
             }
 
             // Check if username already exists
             if (_context.Users.Any(u => u.Username == registerRequest.Username))
             {
-                ModelState.AddModelError("Username", "Username is already taken.");
-                return BadRequest(ModelState);
+                return BadRequest(new ApiResponse(1, "Username is already taken."));
             }
 
             // Hash the password here, after validation
@@ -47,8 +47,7 @@ namespace netbusters.Controllers
             _context.Users.Add(registerRequest);
             _context.SaveChanges();
 
-            // Return success response
-            return Ok(new { Message = "Registration successful" });
+            return Ok(new ApiResponse(0, "Registration successful"));
         }
 
         /// <summary>
@@ -59,15 +58,14 @@ namespace netbusters.Controllers
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest(ModelState);
+                return BadRequest(new ApiResponse(1, "Validation error"));
             }
 
             var user = _context.Users.SingleOrDefault(u => u.Username == loginRequest.Username);
 
             if (user == null || !BCrypt.Net.BCrypt.Verify(loginRequest.Password, user.Password))
             {
-                ModelState.AddModelError("Password", "Invalid credentials.");
-                return Unauthorized(ModelState);
+                return Unauthorized(new ApiResponse(1, "Invalid credentials."));
             }
 
             var token = GenerateJwtToken(user);
@@ -83,7 +81,11 @@ namespace netbusters.Controllers
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
             };
 
-            var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.SecretKey));
+            var secretKey = _configuration["JwtSettings:SecretKey"];
+            var issuer = _configuration["JwtSettings:Issuer"];
+            var audience = _configuration["JwtSettings:Audience"];
+
+            var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
             var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256Signature);
 
             var tokenDescriptor = new SecurityTokenDescriptor
@@ -91,8 +93,8 @@ namespace netbusters.Controllers
                 Subject = new ClaimsIdentity(claims),
                 Expires = DateTime.Now.AddHours(1),
                 SigningCredentials = credentials,
-                Issuer = _jwtSettings.Issuer,
-                Audience = _jwtSettings.Audience
+                Issuer = issuer,
+                Audience = audience
             };
 
             var tokenHandler = new JwtSecurityTokenHandler();
@@ -101,6 +103,9 @@ namespace netbusters.Controllers
             return tokenHandler.WriteToken(token);
         }
 
+        /// <summary>
+        /// Deletes the currently authenticated user's account.
+        /// </summary>     
         [Authorize]
         [HttpDelete("delete")]
         public IActionResult DeleteAccount()
@@ -109,21 +114,21 @@ namespace netbusters.Controllers
             var username = User.Identity?.Name;
             if (string.IsNullOrEmpty(username))
             {
-                return Unauthorized($"User is not logged in. Extracted username: '{username}'");
+                return Unauthorized(new ApiResponse(1, $"User is not logged in. Extracted username: '{username}'"));
             }
 
             // Find the user in the database
             var user = _context.Users.SingleOrDefault(u => u.Username == username);
             if (user == null)
             {
-                return NotFound("User not found.");
+                return NotFound(new ApiResponse(1, "User not found."));
             }
 
             // Delete the user
             _context.Users.Remove(user);
             _context.SaveChanges();
 
-            return Ok("User deleted successfully.");
+            return Ok(new ApiResponse(0, "User deleted successfully."));
         }
     }
 }
