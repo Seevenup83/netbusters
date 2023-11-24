@@ -1,7 +1,8 @@
+//Controllers/UserController.cs
 using Microsoft.AspNetCore.Mvc;
 using netbusters.Data;
 using netbusters.Models;
-using netbusters.Utilities;
+using netbusters.Common;
 using Microsoft.AspNetCore.Authorization;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -11,7 +12,7 @@ using System.Text;
 namespace netbusters.Controllers
 {
     [ApiController]
-    [Route("user")]
+    [Route("api/user")]
     public class UserController : ControllerBase
     {
         private readonly DatabaseContext _context;
@@ -29,15 +30,15 @@ namespace netbusters.Controllers
         [HttpPost]
         public IActionResult Register(User registerRequest)
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(new ApiResponse(1, "Bad Request."));
-            }
-
             // Check if username already exists
-            if (_context.Users.Any(u => u.Username == registerRequest.Username))
+            var existingUsers = _context.Users
+                .Where(u => u.Username == registerRequest.Username)
+                .Select(u => new { u.Id, u.Username })
+                .ToList();
+
+            if (existingUsers.Any())
             {
-                return BadRequest(new ApiResponse(1, "Username is already taken."));
+                return BadRequest(new ApiResponse("Username is already taken.", existingUsers));
             }
 
             // Hash the password here, after validation
@@ -47,7 +48,9 @@ namespace netbusters.Controllers
             _context.Users.Add(registerRequest);
             _context.SaveChanges();
 
-            return Ok(new ApiResponse(0, "Registration successful"));
+            var responseData = new { Id = registerRequest.Id, Username = registerRequest.Username };
+            return Ok(new ApiResponse("Registration successful", responseData));
+        
         }
 
         /// <summary>
@@ -56,16 +59,11 @@ namespace netbusters.Controllers
         [HttpPost("login")]
         public IActionResult Login(User loginRequest)
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(new ApiResponse(1, "Validation error"));
-            }
-
             var user = _context.Users.SingleOrDefault(u => u.Username == loginRequest.Username);
 
             if (user == null || !BCrypt.Net.BCrypt.Verify(loginRequest.Password, user.Password))
             {
-                return Unauthorized(new ApiResponse(1, "Invalid credentials."));
+                return Unauthorized(new ApiResponse("Invalid credentials.", null));
             }
 
             var token = GenerateJwtToken(user);
@@ -78,6 +76,7 @@ namespace netbusters.Controllers
             {
                 new Claim(JwtRegisteredClaimNames.Sub, user.Username),
                 new Claim(JwtRegisteredClaimNames.Name, user.Username),
+                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()), // Ensure this is the user's ID
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
             };
 
@@ -114,21 +113,77 @@ namespace netbusters.Controllers
             var username = User.Identity?.Name;
             if (string.IsNullOrEmpty(username))
             {
-                return Unauthorized(new ApiResponse(1, $"User is not logged in. Extracted username: '{username}'"));
+                return Unauthorized(new ApiResponse("User is not logged in.", username));
             }
 
             // Find the user in the database
             var user = _context.Users.SingleOrDefault(u => u.Username == username);
             if (user == null)
             {
-                return NotFound(new ApiResponse(1, "User not found."));
+                return NotFound(new ApiResponse("User not found.", username));
             }
 
             // Delete the user
+            var deletedUserId = user.Id;
             _context.Users.Remove(user);
             _context.SaveChanges();
 
-            return Ok(new ApiResponse(0, "User deleted successfully."));
+            var responseData = new { Id = deletedUserId, Username = user.Username };
+            return Ok(new ApiResponse("User deleted successfully.", responseData));
+        }
+
+        /// <summary>
+        /// Updates the currently authenticated user's information.
+        /// </summary>
+        [Authorize]
+        [HttpPut]
+        public IActionResult UpdateUser([FromBody] User updatedUser)
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new ApiResponse("Invalid user data.", null));
+            }
+
+            var username = User.Identity?.Name;
+            var existingUser = _context.Users.SingleOrDefault(u => u.Username == username);
+            if (existingUser == null)
+            {
+                return NotFound(new ApiResponse("User not found.", null));
+            }
+
+            // Prevent updating to an existing username
+            if (_context.Users.Any(u => u.Username == updatedUser.Username && u.Id != existingUser.Id))
+            {
+                return BadRequest(new ApiResponse("Username already taken.", null));
+            }
+
+            // Update user properties, be careful with sensitive information like passwords
+            existingUser.Username = updatedUser.Username;
+            // Update other properties as necessary
+
+            _context.Users.Update(existingUser);
+            _context.SaveChanges();
+
+            var responseData = new { Id = existingUser.Id, Username = existingUser.Username };
+            return Ok(new ApiResponse("User updated successfully.", responseData));
+        }
+
+        /// <summary>
+        /// Retrieves the currently authenticated user's information.
+        /// </summary>
+        [Authorize]
+        [HttpGet]
+        public IActionResult GetUser()
+        {
+            var username = User.Identity?.Name;
+            var user = _context.Users.SingleOrDefault(u => u.Username == username);
+            if (user == null)
+            {
+                return NotFound(new ApiResponse("User not found.", null));
+            }
+
+            var responseData = new { Id = user.Id, Username = user.Username };
+            return Ok(new ApiResponse("User retrieved successfully.", responseData));
         }
     }
 }

@@ -1,14 +1,14 @@
-namespace netbusters.Utilities
+namespace netbusters.Common
 {
     public class ApiResponse
     {
-        public int Code { get; set; }
         public string Message { get; set; }
+        public object ResponseData { get; set; }
 
-        public ApiResponse(int code, string message)
+        public ApiResponse(string message, object responseData)
         {
-            Code = code;
             Message = message;
+            ResponseData = responseData;
         }
     }
 }
