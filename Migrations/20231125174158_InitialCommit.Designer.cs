@@ -11,7 +11,7 @@ using netbusters.Data;
 namespace netbusters.Migrations
 {
     [DbContext(typeof(DatabaseContext))]
-    [Migration("20231124203817_InitialCommit")]
+    [Migration("20231125174158_InitialCommit")]
     partial class InitialCommit
     {
         /// <inheritdoc />
@@ -23,32 +23,6 @@ namespace netbusters.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
-
-            modelBuilder.Entity("netbusters.Models.Club", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("HttpLink")
-                        .IsRequired()
-                        .HasMaxLength(2083)
-                        .HasColumnType("character varying(2083)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Clubs");
-                });
 
             modelBuilder.Entity("netbusters.Models.Team", b =>
                 {
@@ -82,6 +56,21 @@ namespace netbusters.Migrations
                         .HasColumnType("integer");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("FirstName")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
+
+                    b.Property<string>("LastName")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)");
 
                     b.Property<string>("Password")
                         .IsRequired()

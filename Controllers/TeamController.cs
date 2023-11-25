@@ -4,6 +4,7 @@ using netbusters.Data;
 using netbusters.Models;
 using netbusters.Common;
 using Microsoft.AspNetCore.Authorization;
+using System.Linq;
 
 namespace netbusters.Controllers
 {
@@ -20,32 +21,74 @@ namespace netbusters.Controllers
 
         /// <summary>
         /// Creates a new team.
-        /// </summary>  
+        /// </summary>
         [Authorize]
         [HttpPost]
         public IActionResult CreateTeam([FromBody] Team team)
         {
+            // Assuming you extract the UserId from the token
+            var userId = 1/* Extract UserId from token */;
+            team.UserId = userId;
+
             _context.Teams.Add(team);
             _context.SaveChanges();
 
-            var responseData = new { team.Id, team.Name };
-            return Ok(new ApiResponse("Team created successfully", responseData));
+            return Ok(ApiResponse.Success("Team created successfully", team));
         }
 
         /// <summary>
-        /// Get a team.
-        /// </summary>  
+        /// Retrieves all teams associated with the logged-in user.
+        /// </summary>
         [Authorize]
         [HttpGet]
-        public IActionResult GetTeams(int clubId)
+        public IActionResult GetTeams()
         {
-            // Logic to get all teams in a specific club
-            // ...
+            var userId = 1 /* Extract UserId from token */;
+            var teams = _context.Teams.Where(t => t.UserId == userId).ToList();
 
-            var teams = "test";
-            return Ok(new ApiResponse("Teams retrieved successfully", teams));
+            return Ok(ApiResponse.Success("Teams retrieved successfully", teams));
         }
 
-        // Other team-related methods...
+        /// <summary>
+        /// Updates a specific team.
+        /// </summary>
+        [Authorize]
+        [HttpPut("{id}")]
+        public IActionResult UpdateTeam(int id, [FromBody] Team updatedTeam)
+        {
+            var team = _context.Teams.Find(id);
+            if (team == null)
+            {
+                return NotFound(ApiResponse.Failure("Team not found"));
+            }
+
+            // Update team details
+            team.Name = updatedTeam.Name;
+            // Update other properties as needed
+
+            _context.Teams.Update(team);
+            _context.SaveChanges();
+
+            return Ok(ApiResponse.Success("Team updated successfully", team));
+        }
+
+        /// <summary>
+        /// Deletes a specific team.
+        /// </summary>
+        [Authorize]
+        [HttpDelete("{id}")]
+        public IActionResult DeleteTeam(int id)
+        {
+            var team = _context.Teams.Find(id);
+            if (team == null)
+            {
+                return NotFound(ApiResponse.Failure("Team not found"));
+            }
+
+            _context.Teams.Remove(team);
+            _context.SaveChanges();
+
+            return Ok(ApiResponse.Success("Team deleted successfully"));
+        }
     }
 }

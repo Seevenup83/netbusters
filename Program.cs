@@ -1,3 +1,4 @@
+//Program.cs
 using Microsoft.OpenApi.Models;
 using Microsoft.EntityFrameworkCore;
 using netbusters.Data;
@@ -69,7 +70,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
             ValidIssuer = issuer,
             ValidAudience = audience,
-            NameClaimType = "name"
+            NameClaimType = JwtRegisteredClaimNames.Sub,
+            RoleClaimType = "role"
         };
     });
 
