@@ -1,28 +1,29 @@
-//Controllers/UserController.cs
+// Controllers/UserController.cs
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using netbusters.Data;
 using netbusters.Models;
-using netbusters.Common;
-using Microsoft.AspNetCore.Authorization;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using Microsoft.IdentityModel.Tokens;
-using System.Text;
+using netbusters.Services;
 
 namespace netbusters.Controllers
 {
+    // ApiController attribute indicates that the controller responds to web API requests.
+    // Route attribute defines the routing pattern for the controller's actions.
     [ApiController]
     [Route("api/user")]
     public class UserController : ControllerBase
     {
+        // Database context for accessing the database.
         private readonly DatabaseContext _context;
-        private readonly IConfiguration _configuration;
+        // Service for handling token-related operations.
+        private readonly TokenService _tokenService;
 
-        public UserController(DatabaseContext context, IConfiguration configuration)
+        // Constructor for injecting dependencies.
+        public UserController(DatabaseContext context, TokenService tokenService)
         {
             _context = context;
-            _configuration = configuration;
+            _tokenService = tokenService;
         }
 
         /// <summary>
@@ -31,17 +32,21 @@ namespace netbusters.Controllers
         [HttpPost]
         public IActionResult Register(User registerRequest)
         {
+            // Check if the username already exists in the database.
             var existingUser = _context.Users.Any(u => u.Username == registerRequest.Username);
             if (existingUser)
             {
-                return BadRequest(ApiResponse.Failure("Username is already taken."));
+                // Return BadRequest if the username is already taken.
+                return BadRequest(ApiResponseService.Failure("Username is already taken."));
             }
 
+            // Hash the password before storing it in the database.
             registerRequest.Password = BCrypt.Net.BCrypt.HashPassword(registerRequest.Password);
             _context.Users.Add(registerRequest);
             _context.SaveChanges();
 
-            return Ok(ApiResponse.Success("Registration successful", new { Id = registerRequest.Id, Username = registerRequest.Username }));
+            // Return success response with the newly created user's ID and username.
+            return Ok(ApiResponseService.Success("Registration successful", new { Id = registerRequest.Id, Username = registerRequest.Username }));
         }
 
         /// <summary>
@@ -50,42 +55,23 @@ namespace netbusters.Controllers
         [HttpGet("login")]
         public IActionResult Login([FromQuery][Required] string username, [FromQuery][Required] string password)
         {
+            // Validate username and password input.
             if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
             {
-                return BadRequest(ApiResponse.Failure("Username and password are required."));
+                return BadRequest(ApiResponseService.Failure("Username and password are required."));
             }
 
+            // Find the user by username and verify the password.
             var user = _context.Users.SingleOrDefault(u => u.Username == username);
             if (user == null || !BCrypt.Net.BCrypt.Verify(password, user.Password))
             {
-                return Unauthorized(ApiResponse.Failure("Invalid credentials."));
+                // Return Unauthorized if credentials are invalid.
+                return Unauthorized(ApiResponseService.Failure("Invalid credentials."));
             }
 
-            var token = GenerateJwtToken(user);
-            return Ok(ApiResponse.Success("Login successful", new { Token = token }));
-        }
-
-        private string GenerateJwtToken(User user)
-        {
-            var claims = new[]
-            {
-                new Claim(JwtRegisteredClaimNames.Sub, user.Username),
-                new Claim(JwtRegisteredClaimNames.Name, user.Username),
-                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
-            };
-
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["JwtSettings:SecretKey"]));
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
-            var token = new JwtSecurityToken(
-                _configuration["JwtSettings:Issuer"],
-                _configuration["JwtSettings:Audience"],
-                claims,
-                expires: DateTime.Now.AddHours(1),
-                signingCredentials: creds);
-
-            return new JwtSecurityTokenHandler().WriteToken(token);
+            // Generate JWT token for the authenticated user.
+            var token = _tokenService.GenerateJwtToken(user);
+            return Ok(ApiResponseService.Success("Login successful", new { Token = token }));
         }
 
         /// <summary>
@@ -98,17 +84,20 @@ namespace netbusters.Controllers
         [HttpDelete("delete")]
         public IActionResult DeleteAccount()
         {
-            var username = User.Identity?.Name;
-            var user = _context.Users.SingleOrDefault(u => u.Username == username);
+            // Retrieve the current user based on the token.
+            var user = _tokenService.GetUserFromToken(HttpContext);
             if (user == null)
             {
-                return NotFound(ApiResponse.Failure("User not found."));
+                // Return NotFound if the user is not found.
+                return NotFound(ApiResponseService.Failure("User not found."));
             }
 
+            // Remove the user from the database and save changes.
             _context.Users.Remove(user);
             _context.SaveChanges();
 
-            return Ok(ApiResponse.Success("User deleted successfully."));
+            // Return success response after deletion.
+            return Ok(ApiResponseService.Success("User deleted successfully."));
         }
 
         /// <summary>
@@ -121,25 +110,28 @@ namespace netbusters.Controllers
         [HttpPut]
         public IActionResult UpdateUser([FromBody] User updatedUser)
         {
+            // Validate the updated user data.
             if (!ModelState.IsValid)
             {
-                return BadRequest(ApiResponse.Failure("Invalid user data."));
+                return BadRequest(ApiResponseService.Failure("Invalid user data."));
             }
 
-            var username = User.Identity?.Name;
-            var user = _context.Users.SingleOrDefault(u => u.Username == username);
-            if (user == null)
+            // Retrieve the current user based on the token.
+            var currentUser = _tokenService.GetUserFromToken(HttpContext);
+            if (currentUser == null)
             {
-                return NotFound(ApiResponse.Failure("User not found."));
+                return NotFound(ApiResponseService.Failure("User not found."));
             }
 
-            user.Username = updatedUser.Username;
-            // Update other user details as necessary
+            // Update the user's information.
+            currentUser.Username = updatedUser.Username;
+            // Update other user details as necessary.
 
-            _context.Users.Update(user);
+            _context.Users.Update(currentUser);
             _context.SaveChanges();
 
-            return Ok(ApiResponse.Success("User updated successfully."));
+            // Return success response after update.
+            return Ok(ApiResponseService.Success("User updated successfully."));
         }
 
         /// <summary>
@@ -152,14 +144,16 @@ namespace netbusters.Controllers
         [HttpGet]
         public IActionResult GetUser()
         {
-            var username = User.Identity?.Name;
-            var user = _context.Users.SingleOrDefault(u => u.Username == username);
+            // Retrieve the current user based on the token.
+            var user = _tokenService.GetUserFromToken(HttpContext);
             if (user == null)
             {
-                return NotFound(ApiResponse.Failure("User not found."));
+                // Return NotFound if the user is not found.
+                return NotFound(ApiResponseService.Failure("User not found."));
             }
 
-            return Ok(ApiResponse.Success("User retrieved successfully.", new { user.Username }));
+            // Return success response with the user's information.
+            return Ok(ApiResponseService.Success("User retrieved successfully.", user));
         }
     }
 }

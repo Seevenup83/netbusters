@@ -1,10 +1,9 @@
 //Controllers/TeamController.cs
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using netbusters.Data;
 using netbusters.Models;
-using netbusters.Common;
-using Microsoft.AspNetCore.Authorization;
-using System.Linq;
+using netbusters.Services;
 
 namespace netbusters.Controllers
 {
@@ -33,7 +32,7 @@ namespace netbusters.Controllers
             _context.Teams.Add(team);
             _context.SaveChanges();
 
-            return Ok(ApiResponse.Success("Team created successfully", team));
+            return Ok(ApiResponseService.Success("Team created successfully", team));
         }
 
         /// <summary>
@@ -46,7 +45,7 @@ namespace netbusters.Controllers
             var userId = 1 /* Extract UserId from token */;
             var teams = _context.Teams.Where(t => t.UserId == userId).ToList();
 
-            return Ok(ApiResponse.Success("Teams retrieved successfully", teams));
+            return Ok(ApiResponseService.Success("Teams retrieved successfully", teams));
         }
 
         /// <summary>
@@ -59,7 +58,7 @@ namespace netbusters.Controllers
             var team = _context.Teams.Find(id);
             if (team == null)
             {
-                return NotFound(ApiResponse.Failure("Team not found"));
+                return NotFound(ApiResponseService.Failure("Team not found"));
             }
 
             // Update team details
@@ -69,7 +68,7 @@ namespace netbusters.Controllers
             _context.Teams.Update(team);
             _context.SaveChanges();
 
-            return Ok(ApiResponse.Success("Team updated successfully", team));
+            return Ok(ApiResponseService.Success("Team updated successfully", team));
         }
 
         /// <summary>
@@ -82,13 +81,13 @@ namespace netbusters.Controllers
             var team = _context.Teams.Find(id);
             if (team == null)
             {
-                return NotFound(ApiResponse.Failure("Team not found"));
+                return NotFound(ApiResponseService.Failure("Team not found"));
             }
 
             _context.Teams.Remove(team);
             _context.SaveChanges();
 
-            return Ok(ApiResponse.Success("Team deleted successfully"));
+            return Ok(ApiResponseService.Success("Team deleted successfully"));
         }
     }
 }

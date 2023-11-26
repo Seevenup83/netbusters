@@ -1,5 +1,5 @@
+//Models/UserModel.cs
 using System.ComponentModel.DataAnnotations;
-using System.Text.RegularExpressions;
 
 namespace netbusters.Models
 {

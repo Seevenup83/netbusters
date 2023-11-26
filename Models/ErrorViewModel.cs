@@ -1,3 +1,4 @@
+//Models/ErrorViewModel.cs
 namespace netbusters.Models;
 
 public class ErrorViewModel

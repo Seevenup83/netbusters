@@ -1,15 +1,17 @@
 //Program.cs
-using Microsoft.OpenApi.Models;
-using Microsoft.EntityFrameworkCore;
-using netbusters.Data;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
-using System.Text;
-using netbusters.Models;
 using System.Reflection;
 using System.IdentityModel.Tokens.Jwt;
+using System.Text;
+using Microsoft.OpenApi.Models;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using netbusters.Data;
+using netbusters.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddScoped<TokenService>();
 
 // Configuring Entity Framework Core with Npgsql as the database provider.
 // Connects to the database using connection string from the configuration.
@@ -70,7 +72,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
             ValidIssuer = issuer,
             ValidAudience = audience,
-            NameClaimType = JwtRegisteredClaimNames.Sub,
+            NameClaimType = JwtRegisteredClaimNames.NameId, // Use 'sub' for the username
             RoleClaimType = "role"
         };
     });
