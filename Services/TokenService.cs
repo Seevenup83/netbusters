@@ -5,57 +5,48 @@ using System.Security.Claims;
 using Microsoft.IdentityModel.Tokens;
 using netbusters.Models;
 using netbusters.Data;
+using Microsoft.AspNetCore.Mvc;
 
 namespace netbusters.Services
 {
-    // This service class handles token-related operations.
     public class TokenService
     {
-        // Database context to interact with the database.
         private readonly DatabaseContext _context;
-        // Configuration to access application settings.
         private readonly IConfiguration _configuration;
 
-        // Constructor for dependency injection.
         public TokenService(DatabaseContext context, IConfiguration configuration)
         {
             _context = context;
             _configuration = configuration;
         }
 
-        // Retrieves a user based on the JWT token in the request.
-        public User GetUserFromToken(HttpContext httpContext)
+        public (User User, ActionResult UnauthorizedResult) GetUserFromToken(HttpContext httpContext)
         {
-            // Extract the token from the Authorization header.
             var authorizationHeader = httpContext.Request.Headers["Authorization"].FirstOrDefault();
             if (authorizationHeader == null || !authorizationHeader.StartsWith("Bearer "))
             {
-                return null; // No token provided.
+                return (null, new UnauthorizedObjectResult("User not authenticated."));
             }
 
-            // Decode the token.
             var tokenString = authorizationHeader.Substring("Bearer ".Length).Trim();
             var tokenHandler = new JwtSecurityTokenHandler();
             var jwtToken = tokenHandler.ReadJwtToken(tokenString);
 
-            // Extract username and user ID claims from the token.
             var usernameClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Sub)?.Value;
             var userIdClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.NameId)?.Value;
 
-            // Validate and parse the user ID.
             if (!int.TryParse(userIdClaim, out var userId))
             {
-                return null; // Invalid token information.
+                return (null, new UnauthorizedObjectResult("User not authenticated."));
             }
 
-            // Retrieve the user from the database and validate the username.
-            var user = _context.Users.SingleOrDefault(u => u.Id == userId);
-            if (user != null && user.Username == usernameClaim)
+            var user = _context.Users.SingleOrDefault(u => u.Id == userId && u.Username == usernameClaim);
+            if (user == null)
             {
-                return user;
+                return (null, new UnauthorizedObjectResult("User not authenticated."));
             }
 
-            return null; // User not found or username mismatch.
+            return (user, null); // User is authenticated and valid
         }
 
         // Generates a JWT token for a given user.

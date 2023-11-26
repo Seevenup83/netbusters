@@ -29,16 +29,12 @@ namespace netbusters.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("ClubId")
-                        .HasColumnType("integer");
-
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(30)
                         .HasColumnType("character varying(30)");
 
                     b.Property<int>("UserId")
-                        .HasMaxLength(30)
                         .HasColumnType("integer");
 
                     b.HasKey("Id");

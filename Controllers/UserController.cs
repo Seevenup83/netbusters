@@ -29,6 +29,7 @@ namespace netbusters.Controllers
         /// <summary>
         /// Registers a new user.
         /// </summary>
+        /// 
         [HttpPost]
         public IActionResult Register(User registerRequest)
         {
@@ -85,12 +86,8 @@ namespace netbusters.Controllers
         public IActionResult DeleteAccount()
         {
             // Retrieve the current user based on the token.
-            var user = _tokenService.GetUserFromToken(HttpContext);
-            if (user == null)
-            {
-                // Return NotFound if the user is not found.
-                return NotFound(ApiResponseService.Failure("User not found."));
-            }
+            var (user, unauthorizedResult) = _tokenService.GetUserFromToken(HttpContext);
+            if (unauthorizedResult != null) return Unauthorized(ApiResponseService.Failure("Unauthorized to update this team.")); 
 
             // Remove the user from the database and save changes.
             _context.Users.Remove(user);
@@ -117,17 +114,13 @@ namespace netbusters.Controllers
             }
 
             // Retrieve the current user based on the token.
-            var currentUser = _tokenService.GetUserFromToken(HttpContext);
-            if (currentUser == null)
-            {
-                return NotFound(ApiResponseService.Failure("User not found."));
-            }
+            var (user, unauthorizedResult) = _tokenService.GetUserFromToken(HttpContext);
+            if (unauthorizedResult != null) return Unauthorized(ApiResponseService.Failure("Unauthorized to update this team.")); 
 
             // Update the user's information.
-            currentUser.Username = updatedUser.Username;
-            // Update other user details as necessary.
+            user.Username = updatedUser.Username;
 
-            _context.Users.Update(currentUser);
+            _context.Users.Update(user);
             _context.SaveChanges();
 
             // Return success response after update.
@@ -145,12 +138,8 @@ namespace netbusters.Controllers
         public IActionResult GetUser()
         {
             // Retrieve the current user based on the token.
-            var user = _tokenService.GetUserFromToken(HttpContext);
-            if (user == null)
-            {
-                // Return NotFound if the user is not found.
-                return NotFound(ApiResponseService.Failure("User not found."));
-            }
+            var (user, unauthorizedResult) = _tokenService.GetUserFromToken(HttpContext);
+            if (unauthorizedResult != null) return Unauthorized(ApiResponseService.Failure("Unauthorized to update this team."));
 
             // Return success response with the user's information.
             return Ok(ApiResponseService.Success("User retrieved successfully.", user));

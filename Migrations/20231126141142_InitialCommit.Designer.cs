@@ -11,7 +11,7 @@ using netbusters.Data;
 namespace netbusters.Migrations
 {
     [DbContext(typeof(DatabaseContext))]
-    [Migration("20231125174158_InitialCommit")]
+    [Migration("20231126141142_InitialCommit")]
     partial class InitialCommit
     {
         /// <inheritdoc />
@@ -32,16 +32,12 @@ namespace netbusters.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<int>("ClubId")
-                        .HasColumnType("integer");
-
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(30)
                         .HasColumnType("character varying(30)");
 
                     b.Property<int>("UserId")
-                        .HasMaxLength(30)
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
