@@ -1,4 +1,3 @@
-//Controllers/TeamController.cs
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using netbusters.Data;
@@ -12,10 +11,12 @@ namespace netbusters.Controllers
     public class TeamController : ControllerBase
     {
         private readonly DatabaseContext _context;
+        private readonly TokenService _tokenService;
 
-        public TeamController(DatabaseContext context)
+        public TeamController(DatabaseContext context, TokenService tokenService)
         {
             _context = context;
+            _tokenService = tokenService;
         }
 
         /// <summary>
@@ -25,10 +26,10 @@ namespace netbusters.Controllers
         [HttpPost]
         public IActionResult CreateTeam([FromBody] Team team)
         {
-            // Assuming you extract the UserId from the token
-            var userId = 1/* Extract UserId from token */;
-            team.UserId = userId;
+            var (user, unauthorizedResult) = _tokenService.GetUserFromToken(HttpContext);
+            if (unauthorizedResult != null) return Unauthorized(ApiResponseService.Failure("Unauthorized to update this team."));
 
+            team.UserId = user.Id;
             _context.Teams.Add(team);
             _context.SaveChanges();
 
@@ -42,8 +43,10 @@ namespace netbusters.Controllers
         [HttpGet]
         public IActionResult GetTeams()
         {
-            var userId = 1 /* Extract UserId from token */;
-            var teams = _context.Teams.Where(t => t.UserId == userId).ToList();
+            var (user, unauthorizedResult) = _tokenService.GetUserFromToken(HttpContext);
+            if (unauthorizedResult != null) return Unauthorized(ApiResponseService.Failure("Unauthorized to update this team."));
+
+            var teams = _context.Teams.Where(t => t.UserId == user.Id).ToList();
 
             return Ok(ApiResponseService.Success("Teams retrieved successfully", teams));
         }
@@ -59,6 +62,15 @@ namespace netbusters.Controllers
             if (team == null)
             {
                 return NotFound(ApiResponseService.Failure("Team not found"));
+            }
+
+            var (user, unauthorizedResult) = _tokenService.GetUserFromToken(HttpContext);
+            if (unauthorizedResult != null) return Unauthorized(ApiResponseService.Failure("Unauthorized to update this team."));
+
+            // Check if the authenticated user is the creator of the team
+            if (team.UserId != user.Id)
+            {
+                return Unauthorized(ApiResponseService.Failure("Unauthorized to update this team."));
             }
 
             // Update team details
@@ -82,6 +94,15 @@ namespace netbusters.Controllers
             if (team == null)
             {
                 return NotFound(ApiResponseService.Failure("Team not found"));
+            }
+
+            var (user, unauthorizedResult) = _tokenService.GetUserFromToken(HttpContext);
+            if (unauthorizedResult != null) return Unauthorized(ApiResponseService.Failure("Unauthorized to update this team."));
+
+            // Check if the authenticated user is the creator of the team
+            if (team.UserId != user.Id)
+            {
+                return Unauthorized(ApiResponseService.Failure("Unauthorized to delete this team."));
             }
 
             _context.Teams.Remove(team);
