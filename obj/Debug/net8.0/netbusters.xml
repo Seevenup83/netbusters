@@ -1,0 +1,75 @@
+<?xml version="1.0"?>
+<doc>
+    <assembly>
+        <name>netbusters</name>
+    </assembly>
+    <members>
+        <member name="M:netbusters.Controllers.TeamController.CreateTeam(netbusters.Models.Team)">
+            <summary>
+            Creates a new team.
+            </summary>
+        </member>
+        <member name="M:netbusters.Controllers.TeamController.GetTeams">
+            <summary>
+            Retrieves all teams associated with the logged-in user.
+            </summary>
+        </member>
+        <member name="M:netbusters.Controllers.TeamController.UpdateTeam(System.Int32,netbusters.Models.Team)">
+            <summary>
+            Updates a specific team.
+            </summary>
+        </member>
+        <member name="M:netbusters.Controllers.TeamController.DeleteTeam(System.Int32)">
+            <summary>
+            Deletes a specific team.
+            </summary>
+        </member>
+        <member name="M:netbusters.Controllers.UserController.Register(netbusters.Models.User)">
+            <summary>
+            Registers a new user.
+            </summary>
+            
+        </member>
+        <member name="M:netbusters.Controllers.UserController.Login(System.String,System.String)">
+            <summary>
+            Logs user into the system and retrieves authentication token.
+            </summary>
+        </member>
+        <member name="M:netbusters.Controllers.UserController.DeleteAccount">
+            <summary>
+            Deletes the currently authenticated user's account.
+            </summary>
+            <remarks>
+            This can only be done by the logged in user.
+            </remarks>
+        </member>
+        <member name="M:netbusters.Controllers.UserController.UpdateUser(netbusters.Models.User)">
+            <summary>
+            Updates the currently authenticated user's information.
+            </summary>
+            <remarks>
+            This can only be done by the logged in user.
+            </remarks>
+        </member>
+        <member name="M:netbusters.Controllers.UserController.GetUser">
+            <summary>
+            Retrieves the currently authenticated user's information.
+            </summary>
+            <remarks>
+            This can only be done by the logged in user.
+            </remarks>
+        </member>
+        <member name="T:netbusters.Migrations.InitialCommit">
+            <inheritdoc />
+        </member>
+        <member name="M:netbusters.Migrations.InitialCommit.Up(Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="M:netbusters.Migrations.InitialCommit.Down(Microsoft.EntityFrameworkCore.Migrations.MigrationBuilder)">
+            <inheritdoc />
+        </member>
+        <member name="M:netbusters.Migrations.InitialCommit.BuildTargetModel(Microsoft.EntityFrameworkCore.ModelBuilder)">
+            <inheritdoc />
+        </member>
+    </members>
+</doc>
